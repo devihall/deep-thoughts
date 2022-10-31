@@ -3,11 +3,11 @@ const { AuthenticationError } = require("apollo-server-express");
 // If a user tries to log in with the wrong username or password, return an authentication error.
 const { signToken } = require("../utils/auth");
 
-
 const resolvers = {
   Query: {
     me: async (parent, args, context) => {
-      if (context.user) {// check for the existence of context.user. If no context.user property exists, then  user isn't authenticated- throw an AuthenticationError.
+      if (context.user) {
+        // check for the existence of context.user. If no context.user property exists, then  user isn't authenticated- throw an AuthenticationError.
         const userData = await User.findOne({ _id: context.user._id })
           .select("-__v -password")
           .populate("thoughts")
@@ -18,8 +18,6 @@ const resolvers = {
 
       throw new AuthenticationError("Not logged in");
     },
-
-    
 
     ////resolver function to look up thoughts for a specific user////
     thoughts: async (parent, { username }) => {
@@ -52,13 +50,70 @@ const resolvers = {
     },
   },
 
-  /////////User resolver mutation creates a new user////////////
+  /////////resolver mutation creates a new user////////////
   Mutation: {
     addUser: async (parent, args) => {
       const user = await User.create(args); // Mongoose User model creates a new user in the database with whatever is passed in as the args.
       const token = signToken(user); // sign a token and return an object that combines the token with the user's data.
       return { token, user };
     },
+
+    /////////resolver mutation creates a new thought////////////
+    addThought: async (parent, args, context) => {
+      if (context.user) {
+        // Only logged-in users should be able to use this mutation, so check for context.user
+        const thought = await Thought.create({
+          ...args,
+          username: context.user.username,
+        });
+
+        await User.findByIdAndUpdate(
+          { _id: context.user._id },
+          { $push: { thoughts: thought._id } },
+          { new: true } // { new: true } flag in User.findByIdAndUpdate(), Mongo would return the original document instead of the updated document.
+        );
+
+        return thought;
+      }
+
+      throw new AuthenticationError("You need to be logged in!");
+    },
+
+    //////resolver mutation adds a new reaction///////
+    addReaction: async (parent, { thoughtId, reactionBody }, context) => {
+      if (context.user) {
+        const updatedThought = await Thought.findOneAndUpdate(
+          { _id: thoughtId },
+          {
+            $push: {
+              reactions: { reactionBody, username: context.user.username },
+            },
+          }, // Reactions are stored as arrays on the Thought model, so use the Mongo $push operator.
+          { new: true, runValidators: true }
+        );
+
+        return updatedThought;
+      }
+
+      throw new AuthenticationError("You need to be logged in!");
+    },
+
+    //////resolver mutation adds a new friend///////
+
+    addFriend: async (parent, { friendId }, context) => {
+      if (context.user) {
+        const updatedUser = await User.findOneAndUpdate(
+          { _id: context.user._id },
+          { $addToSet: { friends: friendId } }, //look for an incoming friendId and add that to the current user's friends array---A user can't be friends with the same person twice, so use the $addToSet operator instead of $push to prevent duplicate entries.
+          { new: true }
+        ).populate("friends");
+
+        return updatedUser;
+      }
+      
+      throw new AuthenticationError("You need to be logged in!");
+    },
+
     /////login() resolver  mutation logins user with authentication////
     login: async (parent, { email, password }) => {
       const user = await User.findOne({ email });
