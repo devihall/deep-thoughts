@@ -5,13 +5,17 @@ const { ApolloServer } = require("apollo-server-express");
 // import our typeDefs and resolvers
 const { typeDefs, resolvers } = require("./schemas");
 const db = require("./config/connection");
+const { authMiddleware } = require("./utils/auth");// import middleware verifying the JWT
+
 
 const PORT = process.env.PORT || 3001;
 // create a new Apollo server and pass in our schema data
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  context: authMiddleware
 });
+// every request performs an authentication check, and the updated request object will be passed to the resolvers as the context.
 
 const app = express();
 
