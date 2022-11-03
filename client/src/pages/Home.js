@@ -1,13 +1,13 @@
 import React from 'react';
 import { useQuery } from "@apollo/client";// importing the useQuery Hook from Apollo Client. This will allow us to make requests to the GraphQL server
-import { QUERY_THOUGHTS } from "../utils/queries";// query for retrieving all thought data to be displayed on homepage.
+import { QUERY_THOUGHT } from "../utils/queries";// query for retrieving all thought data to be displayed on homepage.
 import ThoughtList from "../components/ThoughtList";
 
 
 
 const Home = () => {
   // use useQuery hook to make query request
-  const { loading, data } = useQuery(QUERY_THOUGHTS);
+  const { loading, data } = useQuery(QUERY_THOUGHT);
   const thoughts = data?.thoughts || [];// if data exists, store it in the thoughts constant we just created. If data is undefined, then save an empty array to the thoughts component.
   console.log(thoughts);
   
